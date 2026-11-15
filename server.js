@@ -50,13 +50,23 @@ app.post("/api/sample", async (req, res) => {
 });
 
 // Real drug-label excerpts from openFDA (https://open.fda.gov/apis/drug/label/)
+// The page may send label text such as "Ibuprofen USP, 200 mg in each tablet": strip strengths,
+// dosage forms and salt words, then try the cleaned phrase and finally the first ingredient alone.
+const NOISE = new Set("usp ip bp mg mcg ml tablet tablets capsule capsules caplet caplets each per in and with of the oral film coated extended delayed release hcl hydrochloride sodium potassium calcium magnesium".split(" "));
+async function fdaLabel(term) {
+  const q = encodeURIComponent(`"${term}"`);
+  const r = await fetch(`https://api.fda.gov/drug/label.json?search=openfda.generic_name:${q}+openfda.substance_name:${q}&limit=1`);
+  if (!r.ok) return null;
+  return (await r.json()).results?.[0] || null;
+}
 app.get("/api/fda", async (req, res) => {
-  const name = String(req.query.name || "").replace(/[^a-zA-Z0-9 -]/g, "").trim().slice(0, 60);
-  if (!name) return res.json({});
+  const words = String(req.query.name || "").toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/)
+    .filter(w => w.length > 2 && !NOISE.has(w)).slice(0, 3);
+  if (!words.length) return res.json({});
   try {
-    const r = await fetch(`https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${encodeURIComponent(name)}"&limit=1`);
-    if (!r.ok) return res.json({});
-    const l = (await r.json()).results?.[0] || {};
+    let l = null;
+    for (const term of [...new Set([words.join(" "), words[0]])]) { l = await fdaLabel(term); if (l) break; }
+    if (!l) return res.json({});
     const cut = a => (a ? String(a[0]).slice(0, 700) : "");
     res.json({ interactions: cut(l.drug_interactions), warnings: cut(l.boxed_warning || l.warnings) });
   } catch { res.json({}); }
