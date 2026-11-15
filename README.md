@@ -24,7 +24,7 @@ $env:ANTHROPIC_API_KEY="your_key_here"
 npm start            # → http://localhost:3000
 ```
 
-Optional environment variables: `MODEL` (default `claude-sonnet-5-5`), `PORT` (default `3000`).
+Optional environment variables: `MODEL` — default model, `claude-haiku-5-5` (default) or `claude-sonnet-5-5`, `PORT` (default `3000`).
 Without a key the page still loads, but label reading and interaction checks are disabled.
 
 ## Deploy to Render
@@ -45,6 +45,7 @@ Without a key the page still loads, but label reading and interaction checks are
 - The API key never reaches the browser.
 - "My Meds" is stored only in the browser's localStorage.
 - `/api` is rate-limited to 15 requests per minute per IP.
+- The **AI model** menu in the top bar switches between Claude Haiku 5.5 (default, fast and low-cost) and Claude Sonnet 5.5 (more accurate on hard-to-read labels). The choice is remembered on the device; the server accepts only these two models.
 
 ## Before real-world use
 

@@ -25,6 +25,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font:1rem/1.55 Inter,system-
 .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #2b7b70;color:#5eead4;border-radius:999px;padding:3px 10px;font-weight:600}
 .pill:before{content:"";width:7px;height:7px;border-radius:50%;background:#5eead4}
 .bar button{background:none;border:1px solid #33455b;color:#dbe7f3;border-radius:999px;padding:3px 10px;font:inherit;cursor:pointer}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.msel{display:inline-flex;gap:6px;align-items:center;font-weight:600}
+.msel select{background:#1a2740;color:#dbe7f3;border:1px solid #33455b;border-radius:999px;padding:3px 10px;font:inherit;cursor:pointer}
 header{background:var(--card);border-bottom:1px solid var(--line)}
 header .w{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-top:14px;padding-bottom:14px}
 .brand{display:flex;gap:12px;align-items:center}
@@ -113,7 +116,7 @@ input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--line);border-ra
 </style>
 </head>
 <body>
-<div class="bar"><div class="w"><div><span class="pill">AI label analysis active</span> &nbsp; Educational tool. Always confirm with a pharmacist or prescriber.</div><button id="big" aria-pressed="false">Aa Larger text</button></div></div>
+<div class="bar"><div class="w"><div><span class="pill">AI label analysis active</span> &nbsp; Educational tool. Always confirm with a pharmacist or prescriber.</div><div class="tools"><label class="msel" for="model">AI model <select id="model" aria-label="AI model"><option value="claude-haiku-5-5">Haiku 5.5 · fast</option><option value="claude-sonnet-5-5">Sonnet 5.5 · more accurate</option></select></label><button id="big" aria-pressed="false">Aa Larger text</button></div></div></div>
 <header><div class="w">
   <div class="brand"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v6M9 11h6"/></svg></div>
     <div><h1>MedSafe Lens</h1><p>Drug–food interaction checks and plain-language label explanations</p></div></div>
@@ -168,6 +171,9 @@ input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--line);border-ra
 const $=s=>document.querySelector(s);const esc=s=>{const d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML};
 const L=a=>Array.isArray(a)?a.filter(Boolean):[];
 let sample=null,meds=[],foods=[],fphotos=[],scan=null,scanBlob=null;
+const MODELS={"claude-haiku-5-5":"Claude Haiku 5.5","claude-sonnet-5-5":"Claude Sonnet 5.5"};
+let model="claude-haiku-5-5";try{const m=localStorage.getItem("medsafe.model");if(MODELS[m])model=m}catch(e){}
+$("#model").value=model;$("#model").onchange=e=>{model=MODELS[e.target.value]?e.target.value:"claude-haiku-5-5";try{localStorage.setItem("medsafe.model",model)}catch(x){}};
 try{meds=JSON.parse(localStorage.getItem("medsafe.meds")||"[]")}catch(e){meds=[]}
 const save=()=>{try{localStorage.setItem("medsafe.meds",JSON.stringify(meds))}catch(e){}};
 (async()=>{sample=localSample;
@@ -197,7 +203,7 @@ async function onFile(f){
   $("#res").innerHTML='<div class="empty-s"><span class="sp"></span>Reading the label and writing a plain-language summary…<br><small>This can take up to a minute.</small></div>';
   try{
     const r=await sample(SCAN,{images:[scanBlob],modelTier:"complex",cache:false});
-    const d=parse(r.text);scan=d;showScan(d);
+    const d=parse(r.text);d._model=r.model||model;scan=d;showScan(d);
   }catch(e){$("#gnd").textContent="Could not read";$("#res").innerHTML='<div class="empty-s"><b>Couldn’t analyze that photo</b>'+esc(ERR[e&&e.code]||"Please retake it in bright light with the text in focus.")+'</div>'}
   fr.classList.remove("on");
 }
@@ -210,7 +216,7 @@ function showScan(d){
   const ul=a=>L(a).length?'<ul>'+L(a).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul>':"";
   let h='<div class="rh"><div class="chips">'+(d.form?'<span class="chip">Form: '+esc(d.form)+'</span>':'')+(d.drug_class?'<span>'+esc(d.drug_class)+'</span>':'')+'</div>'
    +'<div class="rt"><h2>'+esc(d.name)+'</h2><button class="dbtn" id="say">🔊 Read Aloud</button></div>'
-   +'<p class="src">Read from your photo by AI'+(d.active_ingredients?' · Active ingredient: '+esc(d.active_ingredients):'')+'</p></div><div class="rb">'
+   +'<p class="src">Read from your photo by '+esc(MODELS[d._model]||"AI")+''+(d.active_ingredients?' · Active ingredient: '+esc(d.active_ingredients):'')+'</p></div><div class="rb">'
    +'<div class="box b-mint"><h4>What this medicine is for</h4><p>'+esc(d.purpose)+'</p></div>'
    +'<div class="box b-blue"><h4>How and when to take it</h4><p>'+esc(d.how_to_take)+'</p></div>'
    +(L(d.food_rules).length?'<div class="box b-cream"><h4>Food and safety rules</h4>'+ul(d.food_rules)+'</div>':'')
@@ -277,7 +283,7 @@ function render(r){
 /* ---- Standalone mode: talks to your own server instead of claude.ai ---- */
 async function localSample(prompt,o={}){
   const images=await Promise.all((o.images||[]).map(b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r({data:f.result.split(",")[1],type:b.type||"image/jpeg"});f.readAsDataURL(b)})));
-  const res=await fetch("/api/sample",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,images})});
+  const res=await fetch("/api/sample",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,images,model})});
   if(!res.ok){const e=await res.json().catch(()=>({}));throw{code:res.status===429?"rate_limited":"error",message:e.error}}
   return await res.json();
 }

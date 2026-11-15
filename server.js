@@ -3,7 +3,9 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = process.env.MODEL || "claude-sonnet-5-5";
+// Models the page may choose from; anything else falls back to the default (MODEL env var, else Haiku)
+const ALLOWED_MODELS = ["claude-haiku-5-5", "claude-sonnet-5-5"];
+const MODEL = ALLOWED_MODELS.includes(process.env.MODEL) ? process.env.MODEL : "claude-haiku-5-5";
 const PORT = process.env.PORT || 3000;
 const ROOT = dirname(fileURLToPath(import.meta.url));
 if (!KEY) console.warn("ANTHROPIC_API_KEY is not set: the page loads, but label reading and interaction checks will be unavailable.");
@@ -15,7 +17,7 @@ app.use(express.json({ limit: "25mb" }));
 
 // Only the page itself is served (no directory listing, server files stay private)
 app.get("/", (req, res) => res.sendFile(join(ROOT, "index.html")));
-app.get("/healthz", (req, res) => res.json({ ok: true, ai: Boolean(KEY) }));
+app.get("/healthz", (req, res) => res.json({ ok: true, ai: Boolean(KEY), defaultModel: MODEL, models: ALLOWED_MODELS }));
 
 // Tiny in-memory rate limit: 15 requests / minute / IP.
 const hits = new Map();
@@ -29,7 +31,8 @@ app.use("/api", (req, res, next) => {
 // Proxy to the Claude API. The key never reaches the browser.
 app.post("/api/sample", async (req, res) => {
   if (!KEY) return res.status(503).json({ error: "The AI service is not configured on this server (ANTHROPIC_API_KEY missing)." });
-  const { prompt, images = [] } = req.body || {};
+  const { prompt, images = [], model } = req.body || {};
+  const useModel = ALLOWED_MODELS.includes(model) ? model : MODEL;
   const okType = t => ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(t);
   if (typeof prompt !== "string" || prompt.length > 20000 || !Array.isArray(images) || images.length > 6)
     return res.status(400).json({ error: "Bad request" });
@@ -41,11 +44,11 @@ app.post("/api/sample", async (req, res) => {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: MODEL, max_tokens: 2500, messages: [{ role: "user", content }] })
+      body: JSON.stringify({ model: useModel, max_tokens: 2500, messages: [{ role: "user", content }] })
     });
     const j = await r.json();
     if (!r.ok) return res.status(r.status).json({ error: j.error?.message || "Upstream error" });
-    res.json({ text: j.content.filter(b => b.type === "text").map(b => b.text).join("") });
+    res.json({ model: useModel, text: j.content.filter(b => b.type === "text").map(b => b.text).join("") });
   } catch { res.status(502).json({ error: "Upstream unreachable" }); }
 });
 
