@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MedSafe Lens</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f8f8;--card:#fff;--ink:#0f1b2d;--mute:#5d6b7c;--line:#e3e9ec;--navy:#111a2e;--brand:#1f8a7a;--brand2:#3f9a6c;--bi:#fff;
+--mint:#eefaf6;--mintl:#cfeee4;--blue:#eef3fd;--bluel:#cddcf7;--blueink:#233a8a;--cream:#fff8e6;--creaml:#f0dca3;--creamink:#7a4a0b;--match:#f4eddc;
+--ok:#15803d;--okbg:#e5f6ea;--warn:#b45309;--warnbg:#fff1d6;--bad:#b91c1c;--badbg:#fde7e7;--unk:#475569;--unkbg:#eceff3}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1219;--card:#121c26;--ink:#e8eef3;--mute:#98a8b8;--line:#223140;--navy:#070c13;--brand:#2dd4bf;--brand2:#34d399;--bi:#04201b;
+--mint:#0f2a26;--mintl:#1c4a42;--blue:#14213d;--bluel:#27407a;--blueink:#a9c1ff;--cream:#2b2410;--creaml:#5b4a1c;--creamink:#f3cf7a;--match:#2a2616;
+--ok:#86efac;--okbg:#10301d;--warn:#fcd34d;--warnbg:#3a2a0a;--bad:#fca5a5;--badbg:#3b1414;--unk:#cbd5e1;--unkbg:#202b36}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1219;--card:#121c26;--ink:#e8eef3;--mute:#98a8b8;--line:#223140;--navy:#070c13;--brand:#2dd4bf;--brand2:#34d399;--bi:#04201b;
+--mint:#0f2a26;--mintl:#1c4a42;--blue:#14213d;--bluel:#27407a;--blueink:#a9c1ff;--cream:#2b2410;--creaml:#5b4a1c;--creamink:#f3cf7a;--match:#2a2616;
+--ok:#86efac;--okbg:#10301d;--warn:#fcd34d;--warnbg:#3a2a0a;--bad:#fca5a5;--badbg:#3b1414;--unk:#cbd5e1;--unkbg:#202b36}
+*,*:before,*:after{box-sizing:inherit}
+html{font-size:100%;scroll-padding-top:env(safe-area-inset-top,0px)}html.big{font-size:120%}
+body{margin:0;background:var(--bg);color:var(--ink);font:1rem/1.55 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.w{max-width:1080px;margin:0 auto;padding:0 16px}
+.bar{background:var(--navy);color:#dbe7f3;font-size:.8rem;padding:8px 0}
+.bar .w{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #2b7b70;color:#5eead4;border-radius:999px;padding:3px 10px;font-weight:600}
+.pill:before{content:"";width:7px;height:7px;border-radius:50%;background:#5eead4}
+.bar button{background:none;border:1px solid #33455b;color:#dbe7f3;border-radius:999px;padding:3px 10px;font:inherit;cursor:pointer}
+header{background:var(--card);border-bottom:1px solid var(--line)}
+header .w{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-top:14px;padding-bottom:14px}
+.brand{display:flex;gap:12px;align-items:center}
+.ico{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,var(--brand),var(--brand2));display:grid;place-items:center}
+.ico svg{width:26px;height:26px;stroke:#fff}
+.brand h1{margin:0;font-size:1.5rem;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.brand p{margin:2px 0 0;color:var(--mute);font-size:.85rem}
+.tabs{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:5px}
+.tab{border:0;background:none;color:var(--mute);font:inherit;font-weight:700;font-size:.92rem;padding:10px 14px;border-radius:12px;cursor:pointer;display:flex;gap:8px;align-items:center}
+.tab[aria-selected="true"]{background:var(--card);color:var(--brand);box-shadow:0 1px 6px rgba(0,0,0,.1)}
+.cnt{background:var(--brand);color:var(--bi);border-radius:999px;min-width:22px;height:22px;display:grid;place-items:center;font-size:.75rem;padding:0 6px}
+.banner{margin:20px 0;background:linear-gradient(100deg,#2f7f78,#3f9a6c);color:#fff;border-radius:22px;padding:22px 24px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.banner h2{margin:0 0 6px;font-size:1.35rem;font-weight:700}.banner p{margin:0;opacity:.92;max-width:62ch;font-size:.95rem}
+.wbtn{background:#fff;color:#14705f;border:0;border-radius:14px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.wbtn:disabled{opacity:.55;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:20px;align-items:start}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:24px;overflow:hidden}
+.ph{padding:16px 18px 0;font-size:.78rem;font-weight:800;letter-spacing:.07em;color:var(--mute);text-transform:uppercase;display:flex;gap:8px;align-items:center}
+.ph:before{content:"";width:10px;height:10px;border-radius:50%;background:var(--brand)}
+.srcs{display:flex;gap:8px;padding:12px 18px;flex-wrap:wrap}
+.sbtn{position:relative;border-radius:999px;padding:10px 16px;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;display:inline-flex;gap:8px;align-items:center;border:1.5px solid var(--mintl);background:var(--mint);color:var(--brand);overflow:hidden}
+.sbtn.dark{background:var(--navy);color:#fff;border-color:var(--navy)}
+.sbtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.sbtn svg{width:18px;height:18px}
+.scanbox{background:#0e1830;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:24px 24px;padding:26px;position:relative}
+.frame{border:2.5px solid #2aa595;border-radius:22px;height:300px;background:#000;display:grid;place-items:center;overflow:hidden;position:relative}
+.frame img{max-width:100%;max-height:100%;object-fit:contain}
+.frame .empty{color:#8aa2b8;text-align:center;padding:20px;font-size:.9rem}
+.frame.on:after{content:"";position:absolute;left:0;right:0;height:3px;background:#2dd4bf;box-shadow:0 0 14px #2dd4bf;animation:sc 1.5s ease-in-out infinite alternate}
+@keyframes sc{from{top:0}to{top:calc(100% - 3px)}}
+.cn{position:absolute;width:26px;height:26px;border:3px solid #2dd4bf}.c1{left:12px;top:12px;border-right:0;border-bottom:0;border-radius:8px 0 0 0}.c2{right:12px;top:12px;border-left:0;border-bottom:0;border-radius:0 8px 0 0}
+.gnd{color:#5eead4;text-align:center;font-size:.82rem;margin:10px 0 0;font-weight:600}
+.match{margin:16px 18px 18px;background:var(--match);border:2px solid var(--creaml);border-radius:22px;padding:16px}
+.match .t{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tagl{background:#f6e3a4;color:#7a4a0b;font-weight:800;font-size:.72rem;letter-spacing:.06em;padding:4px 10px;border-radius:8px;text-transform:uppercase}
+.match h3{margin:12px 0 8px;font-size:1.2rem}
+.mono{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;font:.85rem/1.5 ui-monospace,Menlo,Consolas,monospace;word-break:break-word}
+.rh{padding:20px 22px;border-bottom:1px solid var(--line)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.85rem;color:var(--mute);font-weight:600}
+.chip{background:var(--mint);color:var(--brand);border:1px solid var(--mintl);border-radius:999px;padding:3px 12px;font-weight:700}
+.rt{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-top:10px}
+.rt h2{margin:0;font-size:1.65rem;letter-spacing:-.02em;line-height:1.2}
+.src{color:var(--mute);font-size:.82rem;margin:6px 0 0}
+.dbtn{background:var(--navy);color:#fff;border:0;border-radius:14px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.rb{padding:20px 22px;display:grid;gap:14px}
+.box{border-radius:20px;padding:16px 18px;border:1.5px solid}
+.box h4{margin:0 0 8px;font-size:1rem;display:flex;gap:8px;align-items:center}
+.box p,.box ul{margin:0;font-size:1.02rem}.box ul{padding-left:1.15rem}.box li{margin:4px 0}
+.b-mint{background:var(--mint);border-color:var(--mintl)}.b-mint h4{color:var(--brand)}
+.b-blue{background:var(--blue);border-color:var(--bluel)}.b-blue h4{color:var(--blueink)}
+.b-cream{background:var(--cream);border-color:var(--creaml)}.b-cream h4{color:var(--creamink)}
+.b-red{background:var(--badbg);border-color:var(--bad);color:var(--bad)}.b-red h4{color:var(--bad)}.b-red p,.b-red ul{color:var(--ink)}
+.empty-s{padding:50px 24px;text-align:center;color:var(--mute)}
+.empty-s b{display:block;color:var(--ink);font-size:1.1rem;margin-bottom:6px}
+.sp{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:r .8s linear infinite;display:inline-block;vertical-align:middle;margin-right:10px}@keyframes r{to{transform:rotate(360deg)}}
+.err{color:var(--bad);font-weight:600;padding:0 22px 14px;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px;margin-bottom:18px}
+.card h3{margin:0 0 12px;font-size:1.05rem}
+.med{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:8px 0}
+.med .nm{flex:1}.med b{display:block}.med span{color:var(--mute);font-size:.85rem}
+.x{background:none;border:0;color:var(--mute);font-size:1.3rem;cursor:pointer;line-height:1}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;background:var(--bg);color:var(--ink)}
+.b2{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer}
+.go{background:linear-gradient(135deg,var(--brand),var(--brand2));color:var(--bi);border:0;border-radius:16px;padding:16px;font:inherit;font-weight:800;font-size:1.02rem;width:100%;cursor:pointer}
+.go:disabled{opacity:.45;cursor:not-allowed}
+.fc{display:inline-flex;gap:6px;align-items:center;background:var(--cream);border:1px solid var(--creaml);color:var(--creamink);border-radius:999px;padding:4px 6px 4px 12px;font-weight:600;font-size:.9rem;margin:4px 6px 0 0}
+.fc.ph2{padding:4px 12px;background:var(--blue);border-color:var(--bluel);color:var(--blueink)}
+.verdict{border-radius:20px;padding:18px 20px;margin-bottom:14px}
+.verdict.low{background:var(--okbg);color:var(--ok)}.verdict.mod{background:var(--warnbg);color:var(--warn)}.verdict.high{background:var(--badbg);color:var(--bad)}.verdict.unk{background:var(--unkbg);color:var(--unk)}
+.verdict small{font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:.72rem}.verdict h2{margin:4px 0 10px;color:var(--ink);font-size:1.25rem;line-height:1.3}
+.gauge{display:flex;gap:4px;height:8px}.gauge span{flex:1;border-radius:4px;background:currentColor;opacity:.18}.gauge span.on{opacity:1}
+.item{border:1px solid var(--line);border-left:6px solid var(--unk);border-radius:16px;padding:14px;margin:10px 0}
+.item.low{border-left-color:var(--ok)}.item.mod{border-left-color:var(--warn)}.item.high{border-left-color:var(--bad)}
+.item h4{margin:0 0 6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}.item p{margin:6px 0}
+.badge{border-radius:999px;padding:2px 10px;font-weight:800;font-size:.7rem;text-transform:uppercase}
+.badge.low{background:var(--okbg);color:var(--ok)}.badge.mod{background:var(--warnbg);color:var(--warn)}.badge.high{background:var(--badbg);color:var(--bad)}
+.todo{background:var(--mint);border-radius:12px;padding:10px 12px;margin-top:8px}
+.foot{margin:6px 0 40px;display:grid;gap:12px;grid-template-columns:2fr 1fr}@media(max-width:820px){.foot{grid-template-columns:1fr}}
+.disc{font-size:.85rem;color:var(--mute);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.emg{background:var(--badbg);border:1px solid var(--bad);color:var(--bad);border-radius:16px;padding:14px 16px;font-size:.88rem}.emg b{display:block}
+[hidden]{display:none!important}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+@media print{.bar,header,.banner,.srcs,.scanbox,.dbtn,.go,.b2,.tabs{display:none}}
+</style>
+</head>
+<body>
+<div class="bar"><div class="w"><div><span class="pill">AI label analysis active</span> &nbsp; Educational tool. Always confirm with a pharmacist or prescriber.</div><button id="big" aria-pressed="false">Aa Larger text</button></div></div>
+<header><div class="w">
+  <div class="brand"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v6M9 11h6"/></svg></div>
+    <div><h1>MedSafe Lens</h1><p>Drug–food interaction checks and plain-language label explanations</p></div></div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t1" aria-selected="true">1. Label Scanner</button>
+    <button class="tab" role="tab" id="t2" aria-selected="false">2. Drug–Food Checker <span class="cnt" id="cnt">0</span></button>
+  </nav>
+</div></header>
+
+<div class="w">
+<div class="banner"><div><h2>Understand your medicine in plain language</h2><p>Upload a photo of any medicine or supplement label. The AI reads the printed text, explains what it’s for and how to take it, and lists food and safety rules. Save it to My Meds to check it against what you eat.</p></div>
+<button class="wbtn" id="addmed" disabled>＋ Add to My Meds</button></div>
+
+<!-- TAB 1 -->
+<section id="p1" class="grid">
+  <div class="panel">
+    <div class="ph">Label photo</div>
+    <div class="srcs">
+      <label class="sbtn dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take Photo<input type="file" id="cam" accept="image/*" capture="environment" aria-label="Take photo"></label>
+      <label class="sbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>Upload Image<input type="file" id="up" accept="image/*" aria-label="Upload image"></label>
+    </div>
+    <div class="scanbox"><div class="cn c1"></div><div class="cn c2"></div>
+      <div class="frame" id="frame"><div class="empty">Place the label in the frame.<br>Good light, no glare, text in focus.</div></div>
+      <p class="gnd" id="gnd">Waiting for a photo</p></div>
+    <div class="match" id="match" hidden>
+      <div class="t"><span class="tagl">Label text read</span><span class="src" id="conf"></span></div>
+      <h3 id="mname"></h3><div class="mono" id="mtext"></div>
+      <p class="src">Compare this with your actual package. If it differs, retake the photo.</p>
+    </div>
+  </div>
+  <div class="panel" id="res"><div class="empty-s"><b>No label scanned yet</b>Take or upload a photo to see a plain-language explanation here.</div></div>
+</section>
+
+<!-- TAB 2 -->
+<section id="p2" hidden>
+  <div class="card"><h3>My Meds</h3><div id="meds"></div>
+    <div class="row" style="margin-top:10px"><input type="text" id="mname2" placeholder="Add a medicine by name, e.g. warfarin 5 mg" aria-label="Medicine name"><button class="b2" id="addtxt">Add</button></div>
+    <p class="src">Scan a label on tab 1 and tap “Add to My Meds”, or type a name. Saved on this device only.</p></div>
+  <div class="card"><h3>Foods, drinks and supplements</h3><div id="foods"></div>
+    <div class="row" style="margin-top:10px"><input type="text" id="food" placeholder="e.g. grapefruit juice, spinach, St. John’s wort" aria-label="Food or supplement"><button class="b2" id="addfood">Add</button>
+      <label class="b2" style="position:relative;cursor:pointer">📷 Add label photo<input type="file" id="fph" accept="image/*" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%"></label></div></div>
+  <button class="go" id="check" disabled>Check interactions</button>
+  <p class="err" id="err2" role="alert" style="padding:10px 0 0"></p>
+  <div id="cres" style="margin-top:16px"></div>
+</section>
+
+<div class="foot"><div class="disc"><b>Not medical advice.</b> MedSafe Lens uses AI to read images and summarize general drug information. It can misread labels, may be incomplete or out of date, and does not know your health conditions, other medicines or allergies. It does not query live FDA or pharmacy databases. Never start, stop or change a medicine because of what you see here; speak with a pharmacist or prescriber.</div>
+<div class="emg"><b>Emergency?</b>Call 911. Possible poisoning or overdose (US): Poison Control 1-800-222-1222.</div></div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);const esc=s=>{const d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML};
+const L=a=>Array.isArray(a)?a.filter(Boolean):[];
+let sample=null,meds=[],foods=[],fphotos=[],scan=null,scanBlob=null;
+try{meds=JSON.parse(localStorage.getItem("medsafe.meds")||"[]")}catch(e){meds=[]}
+const save=()=>{try{localStorage.setItem("medsafe.meds",JSON.stringify(meds))}catch(e){}};
+(async()=>{sample=localSample;
+  if(!sample){const m="Analysis is unavailable.";$("#res").innerHTML='<div class="empty-s"><b>Analysis unavailable</b>'+m+'</div>'}
+  drawMeds()})();
+
+$("#big").onclick=e=>e.currentTarget.setAttribute("aria-pressed",document.documentElement.classList.toggle("big"));
+function tab(n){$("#p1").hidden=n!=1;$("#p2").hidden=n!=2;$("#t1").setAttribute("aria-selected",n==1);$("#t2").setAttribute("aria-selected",n==2);$(".banner").hidden=n!=1}
+$("#t1").onclick=()=>tab(1);$("#t2").onclick=()=>tab(2);
+
+function shrink(b,max=1500){return new Promise(r=>{const i=new Image(),u=URL.createObjectURL(b);
+  i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=Math.round(i.width*s);c.height=Math.round(i.height*s);c.getContext("2d").drawImage(i,0,0,c.width,c.height);c.toBlob(x=>{URL.revokeObjectURL(u);r(x||b)},"image/jpeg",.88)};
+  i.onerror=()=>{URL.revokeObjectURL(u);r(b)};i.src=u})}
+const ERR={not_granted:"Permission to use Claude was declined, so this can’t run.",rate_limited:"Too many requests. Please wait a minute and try again.",images_unavailable:"Photo analysis isn’t available here. Type the medicine name instead.",cancelled:"Stopped."};
+const parse=t=>{t=t.replace(/```json|```/g,"");return JSON.parse(t.slice(t.indexOf("{"),t.lastIndexOf("}")+1))};
+
+/* ---------- Scanner ---------- */
+const SCAN=`You are MedSafe Lens, a careful medication-information assistant for patients and caregivers. The image shows a medicine, supplement or food label. Read ONLY what is actually printed or clearly identifiable; never guess strengths or ingredients that aren't visible. If the image is not a medicine/supplement label or is unreadable, set legible=false and explain in "note".
+Explain in plain language at about a 6th-grade level with short sentences; briefly explain medical terms in brackets. Base dosing text on what the label states; if the label doesn't state something, say "Not shown on the label" and suggest asking a pharmacist. Never give personal dosing advice or tell the person to stop or change a medicine.
+Respond with ONLY valid JSON, no markdown fences:
+{"legible":true,"name":"product name and strength","form":"Tablet|Capsule|Liquid|Cream|Other","drug_class":"e.g. NSAID, or empty","active_ingredients":"","label_text":"short transcription of the key printed lines (drug facts, directions) max 300 chars","confidence":"high|medium|low","purpose":"what it is for, 1-2 sentences","how_to_take":"directions as printed on the label, plain language","food_rules":["food, drink, alcohol and supplement cautions, e.g. take with food"],"warnings":["key warnings printed on the label or well established for this ingredient"],"ask_doctor_if":["situations where the person should talk to a doctor or pharmacist first"],"stop_and_get_help":["serious signs needing urgent care"],"note":""}`;
+async function onFile(f){
+  if(!f||!sample)return;
+  scanBlob=await shrink(f);scan=null;$("#addmed").disabled=true;$("#match").hidden=true;
+  const fr=$("#frame");fr.innerHTML="";const im=document.createElement("img");im.src=URL.createObjectURL(scanBlob);im.alt="Uploaded label";fr.append(im);fr.classList.add("on");
+  $("#gnd").textContent="Reading label…";
+  $("#res").innerHTML='<div class="empty-s"><span class="sp"></span>Reading the label and writing a plain-language summary…<br><small>This can take up to a minute.</small></div>';
+  try{
+    const r=await sample(SCAN,{images:[scanBlob],modelTier:"complex",cache:false});
+    const d=parse(r.text);scan=d;showScan(d);
+  }catch(e){$("#gnd").textContent="Could not read";$("#res").innerHTML='<div class="empty-s"><b>Couldn’t analyze that photo</b>'+esc(ERR[e&&e.code]||"Please retake it in bright light with the text in focus.")+'</div>'}
+  fr.classList.remove("on");
+}
+$("#cam").onchange=e=>{onFile(e.target.files[0]);e.target.value=""};$("#up").onchange=e=>{onFile(e.target.files[0]);e.target.value=""};
+
+function showScan(d){
+  if(!d.legible){$("#gnd").textContent="Label not recognised";$("#res").innerHTML='<div class="empty-s"><b>I couldn’t read a medicine label here</b>'+esc(d.note||"Try a closer photo with good light and no glare.")+'</div>';return}
+  $("#gnd").textContent="Label read: "+(d.confidence||"")+" confidence";
+  $("#match").hidden=false;$("#mname").textContent=d.name;$("#mtext").textContent=d.label_text||"";$("#conf").textContent=(d.confidence||"").toUpperCase();
+  const ul=a=>L(a).length?'<ul>'+L(a).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul>':"";
+  let h='<div class="rh"><div class="chips">'+(d.form?'<span class="chip">Form: '+esc(d.form)+'</span>':'')+(d.drug_class?'<span>'+esc(d.drug_class)+'</span>':'')+'</div>'
+   +'<div class="rt"><h2>'+esc(d.name)+'</h2><button class="dbtn" id="say">🔊 Read Aloud</button></div>'
+   +'<p class="src">Read from your photo by AI'+(d.active_ingredients?' · Active ingredient: '+esc(d.active_ingredients):'')+'</p></div><div class="rb">'
+   +'<div class="box b-mint"><h4>What this medicine is for</h4><p>'+esc(d.purpose)+'</p></div>'
+   +'<div class="box b-blue"><h4>How and when to take it</h4><p>'+esc(d.how_to_take)+'</p></div>'
+   +(L(d.food_rules).length?'<div class="box b-cream"><h4>Food and safety rules</h4>'+ul(d.food_rules)+'</div>':'')
+   +(L(d.warnings).length?'<div class="box b-blue"><h4>Important warnings</h4>'+ul(d.warnings)+'</div>':'')
+   +(L(d.ask_doctor_if).length?'<div class="box b-mint"><h4>Ask a doctor or pharmacist first if…</h4>'+ul(d.ask_doctor_if)+'</div>':'')
+   +(L(d.stop_and_get_help).length?'<div class="box b-red"><h4>Get urgent help if…</h4>'+ul(d.stop_and_get_help)+'</div>':'')
+   +'</div>';
+  $("#res").innerHTML=h;$("#addmed").disabled=false;fda(d);
+  const say=$("#say");
+  if(!("speechSynthesis" in window))say.hidden=true;
+  say.onclick=()=>{const s=window.speechSynthesis;if(s.speaking){s.cancel();say.textContent="🔊 Read Aloud";return}
+    const t=[d.name+".","What it is for. "+d.purpose,"How to take it. "+d.how_to_take,L(d.food_rules).length?"Food and safety rules. "+L(d.food_rules).join(". "):"","Always confirm with your pharmacist."].join(" ");
+    const u=new SpeechSynthesisUtterance(t);u.rate=.92;u.onend=()=>say.textContent="🔊 Read Aloud";s.speak(u);say.textContent="⏹ Stop"};
+}
+$("#addmed").onclick=()=>{if(!scan)return;addMed(scan.name,[scan.form,scan.drug_class].filter(Boolean).join(" · "));$("#addmed").textContent="✓ Added";setTimeout(()=>{$("#addmed").textContent="＋ Add to My Meds";tab(2)},700)};
+
+/* ---------- My Meds + Checker ---------- */
+function addMed(name,detail){name=(name||"").trim();if(!name)return;if(!meds.some(m=>m.name.toLowerCase()==name.toLowerCase()))meds.push({name,detail:detail||""});save();drawMeds()}
+function drawMeds(){
+  $("#cnt").textContent=meds.length;
+  $("#meds").innerHTML=meds.length?"":'<p class="src">No medicines saved yet.</p>';
+  meds.forEach((m,i)=>{const d=document.createElement("div");d.className="med";d.innerHTML='<div class="nm"><b>'+esc(m.name)+'</b><span>'+esc(m.detail)+'</span></div>';
+    const x=document.createElement("button");x.className="x";x.textContent="×";x.setAttribute("aria-label","Remove "+m.name);x.onclick=()=>{meds.splice(i,1);save();drawMeds()};d.append(x);$("#meds").append(d)});
+  const f=$("#foods");f.innerHTML="";
+  foods.forEach((t,i)=>f.append(chip(t,()=>{foods.splice(i,1);drawMeds()},0)));
+  fphotos.forEach((b,i)=>f.append(chip("Label photo "+(i+1),()=>{fphotos.splice(i,1);drawMeds()},1)));
+  $("#check").disabled=!sample||!meds.length||(!foods.length&&!fphotos.length);
+}
+function chip(t,fn,ph){const s=document.createElement("span");s.className="fc"+(ph?" ph2":"");s.textContent=t+" ";const x=document.createElement("button");x.className="x";x.textContent="×";x.setAttribute("aria-label","Remove "+t);x.onclick=fn;s.append(x);return s}
+$("#addtxt").onclick=()=>{addMed($("#mname2").value);$("#mname2").value=""};
+$("#mname2").onkeydown=e=>{if(e.key=="Enter")$("#addtxt").click()};
+$("#addfood").onclick=()=>{const v=$("#food").value.trim();if(v){foods.push(v);$("#food").value="";drawMeds()}};
+$("#food").onkeydown=e=>{if(e.key=="Enter")$("#addfood").click()};
+$("#fph").onchange=async e=>{for(const f of e.target.files){if(fphotos.length<5)fphotos.push(await shrink(f))}e.target.value="";drawMeds()};
+
+const CHK=`You are MedSafe Lens, a careful medication-safety assistant. Given the person's medicines and the foods, drinks and supplements they consume (some may be photos of labels, which you should read), identify clinically recognized interactions between EACH medicine and each food/drink/supplement, including timing issues (e.g. calcium with some antibiotics, grapefruit with certain statins, vitamin K with warfarin, St. John's wort with many drugs, potassium with ACE inhibitors, tyramine with MAOIs, alcohol). Also note medicine-to-medicine interactions if two or more medicines are listed.
+Rules: be honest about uncertainty; do not invent interactions; if none are well known say so but note no tool can rule out everything. NEVER tell the person to stop, start, skip or change a dose; advise contacting a pharmacist or prescriber. Plain language at about a 6th-grade level; explain medical terms in brackets. Keep fields brief.
+Respond with ONLY valid JSON (no markdown):
+{"overall":"low|moderate|high|unknown","headline":"one plain sentence","interactions":[{"pair":"A + B","severity":"low|moderate|high","what_happens":"","what_to_do":""}],"safe_combinations":["items with no well-known problem"],"unreadable":[""],"questions_for_pharmacist":[""],"urgent_signs":[""]}`;
+const lab={low:"Low concern",moderate:"Worth a pharmacist check",high:"Talk to a professional soon",unknown:"Not enough information"};
+const cl=s=>({low:"low",moderate:"mod",high:"high"}[s]||"unk");
+$("#check").onclick=async()=>{
+  $("#err2").textContent="";$("#check").disabled=true;
+  $("#cres").innerHTML='<div class="card"><span class="sp"></span>Checking interactions…</div>';
+  try{
+    const p=CHK+"\n\nMedicines: "+meds.map(m=>m.name).join("; ")+"\nFoods/drinks/supplements (text): "+(foods.join("; ")||"(none)")+"\nLabel photos attached: "+fphotos.length;
+    const o={modelTier:"complex",cache:false};if(fphotos.length)o.images=fphotos;
+    const r=await sample(p,o);render(parse(r.text));
+  }catch(e){$("#cres").innerHTML="";$("#err2").textContent=ERR[e&&e.code]||"I couldn’t read that result. Please try again."}
+  drawMeds();
+};
+function render(r){
+  const o=cl(r.overall),lv={low:1,mod:2,high:3,unk:0}[o];
+  let h='<div class="verdict '+o+'"><small>'+esc(lab[r.overall]||lab.unknown)+'</small><h2>'+esc(r.headline)+'</h2><div class="gauge" aria-hidden="true">'+[1,2,3].map(n=>'<span class="'+(n<=lv?"on":"")+'"></span>').join("")+'</div></div>';
+  if(L(r.urgent_signs).length)h+='<div class="box b-red" style="margin-bottom:14px"><h4>Get urgent help if you notice</h4><ul>'+L(r.urgent_signs).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+  h+='<div class="card"><h3>Possible interactions</h3>'+(L(r.interactions).length?r.interactions.map(i=>'<div class="item '+cl(i.severity)+'"><h4>'+esc(i.pair)+' <span class="badge '+cl(i.severity)+'">'+esc(i.severity)+'</span></h4><p>'+esc(i.what_happens)+'</p><div class="todo"><b>Next step:</b> '+esc(i.what_to_do)+'</div></div>').join(""):'<p>No well-known interactions found among what could be read. That doesn’t guarantee safety; confirm with your pharmacist.</p>')+'</div>';
+  if(L(r.safe_combinations).length)h+='<div class="box b-mint" style="margin-bottom:14px"><h4>No well-known problem found with</h4><ul>'+L(r.safe_combinations).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+  if(L(r.questions_for_pharmacist).length)h+='<div class="box b-blue" style="margin-bottom:14px"><h4>Questions to ask your pharmacist</h4><ul>'+L(r.questions_for_pharmacist).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+  if(L(r.unreadable).length)h+='<div class="box b-cream"><h4>Couldn’t read clearly</h4><ul>'+L(r.unreadable).map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+  h+='<div class="row" style="margin-top:14px"><button class="b2" onclick="window.print()">Print / save PDF</button></div>';
+  $("#cres").innerHTML=h;$("#cres").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---- Standalone mode: talks to your own server instead of claude.ai ---- */
+async function localSample(prompt,o={}){
+  const images=await Promise.all((o.images||[]).map(b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r({data:f.result.split(",")[1],type:b.type||"image/jpeg"});f.readAsDataURL(b)})));
+  const res=await fetch("/api/sample",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,images})});
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw{code:res.status===429?"rate_limited":"error",message:e.error}}
+  return await res.json();
+}
+/* Real FDA data via your server's /api/fda (openFDA drug labels) */
+async function fda(d){
+  try{
+    const q=(d.active_ingredients||d.name||"").replace(/[^a-zA-Z ]/g," ").trim().split(/\s+/).slice(0,3).join(" ");
+    if(!q)return;
+    const r=await fetch("/api/fda?name="+encodeURIComponent(q));if(!r.ok)return;
+    const f=await r.json();if(!f.interactions&&!f.warnings)return;
+    const b=document.createElement("div");b.className="box b-blue";
+    b.innerHTML='<h4>From the FDA drug label (openFDA)</h4>'+(f.interactions?'<p><b>Drug interactions:</b> '+esc(f.interactions)+'</p>':'')+(f.warnings?'<p><b>Warnings:</b> '+esc(f.warnings)+'</p>':'')+'<p class="src">Source: openFDA public drug-label data, excerpt only. Read the full label.</p>';
+    const rb=$("#res .rb");if(rb)rb.append(b);
+  }catch(e){}
+}
+</script>
+</body>
+</html>
