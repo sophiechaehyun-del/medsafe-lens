@@ -189,7 +189,8 @@ function shrink(b,max=1500){return new Promise(r=>{const i=new Image(),u=URL.cre
   i.onload=()=>{const s=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=Math.round(i.width*s);c.height=Math.round(i.height*s);c.getContext("2d").drawImage(i,0,0,c.width,c.height);c.toBlob(x=>{URL.revokeObjectURL(u);r(x||b)},"image/jpeg",.88)};
   i.onerror=()=>{URL.revokeObjectURL(u);r(b)};i.src=u})}
 const ERR={not_granted:"Permission to use Claude was declined, so this can’t run.",rate_limited:"Too many requests. Please wait a minute and try again.",images_unavailable:"Photo analysis isn’t available here. Type the medicine name instead.",cancelled:"Stopped."};
-const parse=t=>{t=t.replace(/```json|```/g,"");return JSON.parse(t.slice(t.indexOf("{"),t.lastIndexOf("}")+1))};
+const repairJSON=t=>{let out="",st=[],inS=false,esc2=false;for(const ch of t){out+=ch;if(inS){if(esc2)esc2=false;else if(ch==="\\")esc2=true;else if(ch==='"')inS=false;continue}if(ch==='"')inS=true;else if(ch==="{"||ch==="[")st.push(ch==="{"?"}":"]");else if(ch==="}"||ch==="]")st.pop()}if(esc2)out=out.slice(0,-1);if(inS)out+='"';for(let k=0;k<4;k++){out=out.replace(/\s+$/,"").replace(/:\s*$/,"").replace(/,$/,"");if(st[st.length-1]==="}")out=out.replace(/([{,])\s*"[^"]*"$/,(m,c)=>c==="{"?"{":"");out=out.replace(/,$/,"")}while(st.length)out+=st.pop();return out};
+const parse=t=>{t=String(t||"").replace(/```json|```/g,"");const i=t.indexOf("{");if(i<0)throw{code:"bad_json",message:"The AI reply was empty or not in the expected format."};const j=t.lastIndexOf("}");try{return JSON.parse(t.slice(i,j+1))}catch(e){try{return JSON.parse(repairJSON(t.slice(i)))}catch(e2){throw{code:"bad_json",message:"The AI reply was cut off or not in the expected format."}}}};
 
 /* ---------- Scanner ---------- */
 const SCAN=`You are MedSafe Lens, a careful medication-information assistant for patients and caregivers. The image shows a medicine, supplement or food label. Read ONLY what is actually printed or clearly identifiable; never guess strengths or ingredients that aren't visible. If the image is not a medicine/supplement label or is unreadable, set legible=false and explain in "note".
@@ -270,9 +271,12 @@ async function autoExplain(q){
     +"\nFDA label — matched product: "+(f.product||"(no U.S. label found)")
     +"\nFDA — uses: "+cutT(f.purpose,600)+"\nFDA — directions: "+cutT(f.directions,600)+"\nFDA — warnings: "+cutT(f.warnings,700)+"\nFDA — drug interactions: "+cutT(f.interactions,700);
   try{
-    const r=await sample(prompt,{});
+    let r=await sample(prompt,{}),d;
     if(run!==scanRun||!scan||scan.active_ingredients!==name)return;
-    const d=parse(r.text);
+    try{d=parse(r.text)}catch(pe){
+      r=await sample(prompt+"\n\nIMPORTANT: Your previous answer was cut off. Keep every field to one short sentence and every list to at most 3 short items. Output the JSON object only.",{});
+      if(run!==scanRun||!scan||scan.active_ingredients!==name)return;
+      d=parse(r.text)}
     Object.assign(d,{legible:true,_model:r.model||model,_fromText:true,_conf:q.score>=CONFIDENT?"high":"low",_fdaHtml:fd.html||"",label_text:cutT(q.text,300)});
     if(!d.active_ingredients)d.active_ingredients=name;
     scan=d;showScan(d);
@@ -707,7 +711,7 @@ async function localSample(prompt,o={}){
   const images=await Promise.all((o.images||[]).map(b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r({data:f.result.split(",")[1],type:b.type||"image/jpeg"});f.readAsDataURL(b)})));
   const res=await fetch("/api/sample",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,images,model})});
   if(!res.ok){const e=await res.json().catch(()=>({}));throw{code:res.status===429?"rate_limited":"error",message:e.error}}
-  return await res.json();
+  const raw=await res.text();if(!raw)throw{code:"error",message:"The server returned an empty reply. Please try again."};try{return JSON.parse(raw)}catch(e){throw{code:"error",message:"The server reply could not be read. Please try again."}}
 }
 /* Real FDA data via your server's /api/fda (openFDA drug labels) */
 async function fda(d){

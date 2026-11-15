@@ -44,11 +44,12 @@ app.post("/api/sample", async (req, res) => {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: useModel, max_tokens: 2500, messages: [{ role: "user", content }] })
+      body: JSON.stringify({ model: useModel, max_tokens: 4000, messages: [{ role: "user", content }] })
     });
-    const j = await r.json();
+    const raw = await r.text();
+    let j; try { j = JSON.parse(raw); } catch { return res.status(502).json({ error: "The AI service returned an unreadable reply. Please try again." }); }
     if (!r.ok) return res.status(r.status).json({ error: j.error?.message || "Upstream error" });
-    res.json({ model: useModel, text: j.content.filter(b => b.type === "text").map(b => b.text).join("") });
+    res.json({ model: useModel, stop: j.stop_reason, text: (j.content || []).filter(b => b.type === "text").map(b => b.text).join("") });
   } catch { res.status(502).json({ error: "Upstream unreachable" }); }
 });
 
