@@ -1,11 +1,9 @@
 # MedSafe Lens
 
 Photo-based drug–food interaction checker with plain-language explanations.
-Take a photo of a medicine label: the app reads it **on your device** (no AI), shows the matching
-official FDA label information, and automatically gets a plain-language summary from Claude written
-from the ingredient name and FDA text — **the photo itself is not sent**. If the on-device reading
-fails or looks wrong, you can choose to have Claude read the photo directly. You can also check
-interactions between your medicines and foods.
+Take a photo of a medicine label: the photo is sent (through this server) to Claude, which reads the label and
+explains the medicine in plain language, together with the matching official FDA label information. You can
+also check interactions between your medicines and foods.
 
 > **Not medical advice.** The AI can misread labels or miss interactions. Always confirm with a pharmacist or doctor.
 
@@ -38,24 +36,20 @@ Without a key the page still loads, but label reading and interaction checks are
 
 ## How it works
 
-1. **On-device reading (no AI, free):** the photo is read in the browser with Tesseract.js OCR. The image is
-   straightened, contrast-corrected (including light text on dark bands) and tried in several orientations; a
-   medicine-name extractor (dictionary + brand names + label-context scoring) picks the active ingredient.
-   On a test set of 260 photographed and distorted labels it identified the ingredient in about 90% of cases.
-2. **FDA label lookup:** the detected name (text only) is matched to the public openFDA drug-label database
-   to show uses, directions, warnings, interactions and storage.
-3. **Automatic plain-language summary (text only):** Claude receives the detected ingredient, the OCR text and the
-   FDA excerpts — not the image — and writes an easy-to-read explanation.
-4. **Photo to AI only on request:** the photo is sent (via this server) to Claude only when the user taps
-   **Check the photo with AI**, e.g. when on-device reading fails. The interaction checker also uses Claude.
+1. **AI label reading:** as soon as a photo is uploaded it is resized in the browser and sent via this server to
+   Claude (Haiku 5.5 by default, Sonnet 5.5 selectable), which reads the label and returns a plain-language
+   summary: what it is for, how to take it, food and alcohol cautions, warnings and when to get help.
+2. **FDA label lookup:** the ingredient name (text only) is matched to the public openFDA drug-label database
+   to show uses, directions, warnings, interactions and storage next to the AI summary.
+3. **Interaction checker:** Claude checks the saved medicines against foods and drinks.
 
 | File | Purpose |
 |---|---|
-| `index.html` | The whole UI: on-device label reader, FDA info, AI explanation, My Meds, interaction checker, read-aloud |
+| `index.html` | The whole UI: photo upload, AI label reading, FDA info, My Meds, interaction checker, read-aloud |
 | `server.js` | Serves the page, keeps the API key on the server, proxies AI requests to Claude, fetches openFDA label data |
 | `render.yaml` | One-click Render deployment settings |
 
-- The API key never reaches the browser; photos stay on the device unless the user asks the AI to read the photo.
+- The API key never reaches the browser; photos are sent to Claude only through this server and are not stored.
 - "My Meds" is stored only in the browser's localStorage.
 - `/api` is rate-limited to 15 requests per minute per IP.
 - The **AI model** menu in the top bar switches between Claude Haiku 5.5 (default, fast and low-cost) and Claude Sonnet 5.5 (more accurate on hard-to-read labels). The choice is remembered on the device; the server accepts only these two models.
