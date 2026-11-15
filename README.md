@@ -9,7 +9,7 @@ openFDA drug-label database.
 
 ## Live demo
 
-**https://YOUR-SERVICE.onrender.com** — hosted on Render's free plan. If it has been idle, the first load can take about a minute while the server wakes up.
+**https://medsafe-lens.onrender.com** — hosted on Render's free plan. If it has been idle, the first load can take about a minute while the server wakes up.
 
 ## Run it locally
 
