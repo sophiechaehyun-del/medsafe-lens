@@ -53,25 +53,53 @@ app.post("/api/sample", async (req, res) => {
 });
 
 // Real drug-label excerpts from openFDA (https://open.fda.gov/apis/drug/label/)
-// The page may send label text such as "Ibuprofen USP, 200 mg in each tablet": strip strengths,
-// dosage forms and salt words, then try the cleaned phrase and finally the first ingredient alone.
+// Accepts label text such as "Ibuprofen USP, 200 mg in each tablet" or "amlodipine and atorvastatin":
+// strips strengths, dosage forms and salt words, maps international names to U.S. names, then tries
+// all ingredients together, the cleaned phrase, and finally the first ingredient alone.
 const NOISE = new Set("usp ip bp mg mcg ml tablet tablets capsule capsules caplet caplets each per in and with of the oral film coated extended delayed release hcl hydrochloride sodium potassium calcium magnesium".split(" "));
-async function fdaLabel(term) {
-  const q = encodeURIComponent(`"${term}"`);
-  const r = await fetch(`https://api.fda.gov/drug/label.json?search=openfda.generic_name:${q}+openfda.substance_name:${q}&limit=1`);
+const SYNONYMS = { paracetamol: "acetaminophen", salbutamol: "albuterol", levosalbutamol: "levalbuterol", glibenclamide: "glyburide",
+  frusemide: "furosemide", adrenaline: "epinephrine", noradrenaline: "norepinephrine", lignocaine: "lidocaine", pethidine: "meperidine",
+  rifampicin: "rifampin", thyroxine: "levothyroxine", amoxycillin: "amoxicillin", cefalexin: "cephalexin", ciclosporin: "cyclosporine",
+  colecalciferol: "cholecalciferol", dicycloverine: "dicyclomine", mesalazine: "mesalamine", phenobarbitone: "phenobarbital",
+  aciclovir: "acyclovir", valaciclovir: "valacyclovir", chlorphenamine: "chlorpheniramine", isoprenaline: "isoproterenol" };
+const fdaCache = new Map();
+async function fdaSearch(search) {
+  const r = await fetch(`https://api.fda.gov/drug/label.json?search=${search}&limit=1`);
   if (!r.ok) return null;
   return (await r.json()).results?.[0] || null;
 }
+const byName = t => { const q = encodeURIComponent(`"${t}"`); return `openfda.generic_name:${q}+openfda.substance_name:${q}`; };
+const allOf = ws => ws.map(w => { const q = encodeURIComponent(`"${w}"`); return `(openfda.generic_name:${q}+openfda.substance_name:${q})`; }).join("+AND+");
+const text = (l, ...keys) => { for (const k of keys) if (l[k]?.length) return String(l[k].join(" ")).replace(/\s+/g, " ").replace(/^(\d+(\.\d+)*\s+)?[A-Z][A-Z &/,()-]{3,60}\s+(?=[A-Z][a-z])/, "").trim(); return ""; };
+const cut = (t, n = 700) => (t.length > n ? t.slice(0, n).replace(/\s+\S*$/, "") + " …" : t);
 app.get("/api/fda", async (req, res) => {
   const words = String(req.query.name || "").toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/)
-    .filter(w => w.length > 2 && !NOISE.has(w)).slice(0, 3);
+    .filter(w => w.length > 2 && !NOISE.has(w)).map(w => SYNONYMS[w] || w).slice(0, 3);
   if (!words.length) return res.json({});
+  const key = words.join(" ");
   try {
-    let l = null;
-    for (const term of [...new Set([words.join(" "), words[0]])]) { l = await fdaLabel(term); if (l) break; }
+    let l = fdaCache.get(key);
+    if (l === undefined) {
+      const tries = [];
+      if (words.length > 1) tries.push(allOf(words));
+      tries.push(byName(key)); if (words.length > 1) tries.push(byName(words[0]));
+      l = null;
+      for (const t of tries) { l = await fdaSearch(t); if (l) break; }
+      fdaCache.set(key, l); if (fdaCache.size > 500) fdaCache.delete(fdaCache.keys().next().value);
+    }
     if (!l) return res.json({});
-    const cut = a => (a ? String(a[0]).slice(0, 700) : "");
-    res.json({ interactions: cut(l.drug_interactions), warnings: cut(l.boxed_warning || l.warnings) });
+    const out = { interactions: cut(text(l, "drug_interactions")), warnings: cut(text(l, "boxed_warning", "warnings", "warnings_and_cautions")) };
+    if (req.query.full) {
+      const o = l.openfda || {};
+      Object.assign(out, {
+        product: [o.brand_name?.[0], o.generic_name?.[0] && `(${o.generic_name[0].toLowerCase()})`, o.manufacturer_name?.[0] && `— ${o.manufacturer_name[0]}`].filter(Boolean).join(" "),
+        purpose: cut(text(l, "indications_and_usage", "purpose"), 500),
+        directions: cut(text(l, "dosage_and_administration", "directions"), 500),
+        storage: cut(text(l, "storage_and_handling", "how_supplied"), 300),
+        source: l.set_id ? `https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=${encodeURIComponent(l.set_id)}` : ""
+      });
+    }
+    res.json(out);
   } catch { res.json({}); }
 });
 

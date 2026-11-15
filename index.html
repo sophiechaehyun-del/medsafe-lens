@@ -114,9 +114,10 @@ input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--line);border-ra
 :focus-visible{outline:3px solid var(--brand);outline-offset:2px}
 @media print{.bar,header,.banner,.srcs,.scanbox,.dbtn,.go,.b2,.tabs{display:none}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
 </head>
 <body>
-<div class="bar"><div class="w"><div><span class="pill">AI label analysis active</span> &nbsp; Educational tool. Always confirm with a pharmacist or prescriber.</div><div class="tools"><label class="msel" for="model">AI model <select id="model" aria-label="AI model"><option value="claude-haiku-5-5">Haiku 5.5 · fast</option><option value="claude-sonnet-5-5">Sonnet 5.5 · more accurate</option></select></label><button id="big" aria-pressed="false">Aa Larger text</button></div></div></div>
+<div class="bar"><div class="w"><div><span class="pill">On-device label reading · AI on request</span> &nbsp; Educational tool. Always confirm with a pharmacist or prescriber.</div><div class="tools"><label class="msel" for="model">AI model <select id="model" aria-label="AI model"><option value="claude-haiku-5-5">Haiku 5.5 · fast</option><option value="claude-sonnet-5-5">Sonnet 5.5 · more accurate</option></select></label><button id="big" aria-pressed="false">Aa Larger text</button></div></div></div>
 <header><div class="w">
   <div class="brand"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v6M9 11h6"/></svg></div>
     <div><h1>MedSafe Lens</h1><p>Drug–food interaction checks and plain-language label explanations</p></div></div>
@@ -127,7 +128,7 @@ input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--line);border-ra
 </div></header>
 
 <div class="w">
-<div class="banner"><div><h2>Understand your medicine in plain language</h2><p>Upload a photo of any medicine or supplement label. The AI reads the printed text, explains what it’s for and how to take it, and lists food and safety rules. Save it to My Meds to check it against what you eat.</p></div>
+<div class="banner"><div><h2>Understand your medicine in plain language</h2><p>Upload a photo of any medicine or supplement label. Your photo is first read on this device and matched to the official FDA label — no AI needed. Tap “Explain with AI” only if you want a plain-language summary. Save it to My Meds to check it against what you eat.</p></div>
 <button class="wbtn" id="addmed" disabled>＋ Add to My Meds</button></div>
 
 <!-- TAB 1 -->
@@ -163,7 +164,7 @@ input[type=text]{flex:1;min-width:160px;border:1.5px solid var(--line);border-ra
   <div id="cres" style="margin-top:16px"></div>
 </section>
 
-<div class="foot"><div class="disc"><b>Not medical advice.</b> MedSafe Lens uses AI to read images and summarize general drug information. It can misread labels, may be incomplete or out of date, and does not know your health conditions, other medicines or allergies. It does not query live FDA or pharmacy databases. Never start, stop or change a medicine because of what you see here; speak with a pharmacist or prescriber.</div>
+<div class="foot"><div class="disc"><b>Not medical advice.</b> MedSafe Lens uses AI to read images and summarize general drug information. It can misread labels, may be incomplete or out of date, and does not know your health conditions, other medicines or allergies. Label excerpts come from public U.S. openFDA data and may not match products sold elsewhere. Photos are sent to the AI service only when you choose “Explain with AI” or run an interaction check with label photos. Never start, stop or change a medicine because of what you see here; speak with a pharmacist or prescriber.</div>
 <div class="emg"><b>Emergency?</b>Call 911. Possible poisoning or overdose (US): Poison Control 1-800-222-1222.</div></div>
 </div>
 
@@ -195,19 +196,407 @@ const SCAN=`You are MedSafe Lens, a careful medication-information assistant for
 Explain in plain language at about a 6th-grade level with short sentences; briefly explain medical terms in brackets. Base dosing text on what the label states; if the label doesn't state something, say "Not shown on the label" and suggest asking a pharmacist. Never give personal dosing advice or tell the person to stop or change a medicine.
 Respond with ONLY valid JSON, no markdown fences:
 {"legible":true,"name":"product name and strength","form":"Tablet|Capsule|Liquid|Cream|Other","drug_class":"e.g. NSAID, or empty","active_ingredients":"","label_text":"short transcription of the key printed lines (drug facts, directions) max 300 chars","confidence":"high|medium|low","purpose":"what it is for, 1-2 sentences","how_to_take":"directions as printed on the label, plain language","food_rules":["food, drink, alcohol and supplement cautions, e.g. take with food"],"warnings":["key warnings printed on the label or well established for this ingredient"],"ask_doctor_if":["situations where the person should talk to a doctor or pharmacist first"],"stop_and_get_help":["serious signs needing urgent care"],"note":""}`;
+/* ---------- Scanner: read on this device first (no AI), AI explanation only on request ---------- */
+let quick=null,scanFile=null,scanRun=0;
 async function onFile(f){
-  if(!f||!sample)return;
-  scanBlob=await shrink(f);scan=null;$("#addmed").disabled=true;$("#match").hidden=true;
+  if(!f)return;
+  const run=++scanRun;
+  scanFile=f;scanBlob=await shrink(f);scan=null;quick=null;$("#addmed").disabled=true;$("#match").hidden=true;
   const fr=$("#frame");fr.innerHTML="";const im=document.createElement("img");im.src=URL.createObjectURL(scanBlob);im.alt="Uploaded label";fr.append(im);fr.classList.add("on");
-  $("#gnd").textContent="Reading label…";
-  $("#res").innerHTML='<div class="empty-s"><span class="sp"></span>Reading the label and writing a plain-language summary…<br><small>This can take up to a minute.</small></div>';
-  try{
-    const r=await sample(SCAN,{images:[scanBlob],modelTier:"complex",cache:false});
-    const d=parse(r.text);d._model=r.model||model;scan=d;showScan(d);
-  }catch(e){$("#gnd").textContent="Could not read";$("#res").innerHTML='<div class="empty-s"><b>Couldn’t analyze that photo</b>'+esc(ERR[e&&e.code]||"Please retake it in bright light with the text in focus.")+'</div>'}
-  fr.classList.remove("on");
+  $("#gnd").textContent="Reading label on this device…";
+  $("#res").innerHTML='<div class="empty-s"><span class="sp"></span><span id="ocrstep">Reading the label text on your device. Nothing is sent to AI.</span><br><small>Usually 3–20 seconds.</small></div>';
+  let q;
+  try{q=await readLabelOnDevice(f,s=>{const e=$("#ocrstep");if(e&&run===scanRun)e.textContent=s})}catch(e){q={name:"",score:0,text:"",error:true}}
+  if(run!==scanRun)return;
+  fr.classList.remove("on");quick=q;showQuick(q);
 }
 $("#cam").onchange=e=>{onFile(e.target.files[0]);e.target.value=""};$("#up").onchange=e=>{onFile(e.target.files[0]);e.target.value=""};
+
+const cap=s=>s.replace(/\b[a-z]/g,c=>c.toUpperCase());
+function aiOffer(lead){
+  const m=MODELS[model]||"AI";
+  return '<div class="box b-cream aibox"><h4>Want a plain-language explanation?</h4><p>'+esc(lead)+'</p>'
+    +'<button class="dbtn" id="askai" style="margin-top:10px">✨ Explain with '+esc(m)+'</button>'
+    +'<p class="src" style="margin-top:8px">This sends the photo to the AI service (Anthropic Claude). Nothing is sent until you press the button.</p></div>';
+}
+function showQuick(q){
+  const conf=q.score>=CONFIDENT?"high":"low";
+  if(!q.name){
+    $("#gnd").textContent=q.error?"On-device reading unavailable":"Medicine name not found on device";
+    $("#res").innerHTML='<div class="rb"><div class="empty-s" style="padding:24px"><b>Couldn’t identify the medicine name</b>'
+      +(q.error?"The text-recognition engine could not load.":"Try a closer, well-lit photo of the front of the package with no glare.")+'</div>'
+      +aiOffer("The AI can often read blurry, angled or unusual labels that on-device recognition misses.")+'</div>';
+    $("#askai").onclick=aiAnalyze;return;
+  }
+  const name=cap(q.name);
+  scan={name,form:"",drug_class:"",active_ingredients:q.name,_quick:true};
+  $("#addmed").disabled=false;
+  $("#gnd").textContent="Read on device: "+name+(conf==="high"?"":" (please check)");
+  $("#match").hidden=false;$("#mname").textContent=name;$("#mtext").textContent=(q.text||"").replace(/\s+/g," ").slice(0,300);
+  $("#conf").textContent=conf==="high"?"ON-DEVICE · HIGH CONFIDENCE":"ON-DEVICE · LOW CONFIDENCE";
+  $("#res").innerHTML='<div class="rh"><div class="chips"><span class="chip">Read on this device · no AI</span></div>'
+    +'<div class="rt"><h2>'+esc(name)+'</h2></div>'
+    +'<p class="src">Active ingredient detected by on-device text recognition'+(conf==="high"?"":" (low confidence)")+'. Compare it with your package.</p></div>'
+    +'<div class="rb" id="qrb"><div class="box b-blue"><h4>From the FDA drug label (openFDA)</h4><p><span class="sp"></span>Looking up the official U.S. label…</p></div>'
+    +aiOffer("Get an easy-to-read summary of what this medicine is for, how to take it, and food and safety rules.")+'</div>';
+  $("#askai").onclick=aiAnalyze;
+  fdaQuick(q.name);
+}
+async function fdaQuick(name){
+  const box=$("#qrb .b-blue");if(!box)return;
+  try{
+    const r=await fetch("/api/fda?full=1&name="+encodeURIComponent(name));const f=r.ok?await r.json():{};
+    if(!$("#qrb")||!scan||scan.active_ingredients!==name)return;
+    const sec=[["What it is used for",f.purpose],["Directions",f.directions],["Warnings",f.warnings],["Drug interactions",f.interactions],["Storage",f.storage]].filter(x=>x[1]);
+    if(!sec.length){box.innerHTML='<h4>From the FDA drug label (openFDA)</h4><p>No matching U.S. label was found for “'+esc(name)+'”. Medicines sold outside the U.S. may not be listed.</p>';return}
+    box.innerHTML='<h4>From the FDA drug label (openFDA)</h4>'+(f.product?'<p class="src" style="margin:0 0 8px">Matched label: '+esc(f.product)+'</p>':'')
+      +sec.map(([h,t])=>'<p style="margin:0 0 8px"><b>'+esc(h)+':</b> '+esc(t)+'</p>').join("")
+      +'<p class="src">Excerpts from public U.S. label data; a match by name may not be your exact product.'+(f.source?' <a href="'+esc(f.source)+'" target="_blank" rel="noopener">Full label</a>':'')+'</p>';
+  }catch(e){box.innerHTML='<h4>From the FDA drug label (openFDA)</h4><p>Could not reach the FDA label service right now.</p>'}
+}
+async function aiAnalyze(){
+  if(!scanBlob||!sample)return;
+  const run=scanRun;
+  const fr=$("#frame");fr.classList.add("on");$("#addmed").disabled=true;
+  $("#gnd").textContent="Asking "+(MODELS[model]||"AI")+"…";
+  $("#res").innerHTML='<div class="empty-s"><span class="sp"></span>Sending the photo to '+esc(MODELS[model]||"AI")+' for a plain-language summary…<br><small>This can take up to a minute.</small></div>';
+  try{
+    const r=await sample(SCAN,{images:[scanBlob],modelTier:"complex",cache:false});
+    if(run!==scanRun)return;
+    const d=parse(r.text);d._model=r.model||model;scan=d;showScan(d);
+  }catch(e){if(run!==scanRun)return;$("#gnd").textContent="AI could not read it";$("#res").innerHTML='<div class="empty-s"><b>Couldn’t analyze that photo</b>'+esc(ERR[e&&e.code]||(e&&e.message)||"Please retake it in bright light with the text in focus.")+'</div>'+(quick&&quick.name?'<div style="padding:0 22px 20px"><button class="b2" id="backq">← Back to the on-device result</button></div>':'');const b=$("#backq");if(b)b.onclick=()=>{scan=null;showQuick(quick)}}
+  fr.classList.remove("on");
+}
+
+/* ---------- On-device OCR (Tesseract.js) ---------- */
+let ocrWorker=null;
+async function getWorker(){if(!window.Tesseract)throw Error("OCR library did not load");if(!ocrWorker)ocrWorker=Tesseract.createWorker("eng");return ocrWorker}
+const newCanvas=(w,h)=>{const c=document.createElement("canvas");c.width=w;c.height=h;return c};
+// original → contrast-corrected & straightened (enlarged) → same at original size → turned 90°/270°/180°;
+// stop at the first confident name (order chosen by testing on 260 photographed/augmented labels)
+async function readLabelOnDevice(file,progress){
+  const worker=await getWorker();
+  const bmp=await createImageBitmap(file);
+  try{
+    const long=Math.max(bmp.width,bmp.height),up=long<1600?Math.min(3,2000/long):1,skew=estimateSkew(newCanvas,bmp);
+    const passes=[{raw:true,label:"original"}];
+    if(up>1)passes.push({rot:-skew,scale:up,mode:"local",label:"contrast-corrected, enlarged"},{rot:-skew,scale:up,label:skew?"straightened, enlarged":"enlarged"});
+    passes.push({rot:-skew,scale:1,mode:"local",label:"contrast-corrected"},{rot:-skew,scale:1,label:skew?"straightened":"enhanced"});
+    for(const r of [90,270,180])passes.push({rot:-skew+r,scale:up,label:"rotated "+r+"°"});
+    const results=[];let firstText="",bestText="";
+    for(let i=0;i<passes.length;i++){const p=passes[i];progress("Reading the label on your device (pass "+(i+1)+" of "+passes.length+": "+p.label+"). Nothing is sent to AI.");
+      const src=p.raw?file:renderVariant(newCanvas,bmp,p.rot,p.scale,p.mode);const r=await worker.recognize(src);const text=(r.data.text||"").trim();if(i===0)firstText=text;
+      const res=analyzeMedicine(text);res.text=text;results.push(res);if(res.score>=CONFIDENT){bestText=text;break}}
+    const pick=pickResult(results);
+    const src=results.find(r=>r.name===pick.name);
+    return {name:pick.name,score:pick.score,text:(src&&src.text)||bestText||firstText};
+  }finally{if(bmp.close)bmp.close()}
+}
+
+/* ---------- Image helpers for on-device OCR ---------- */
+// Estimate text skew in degrees (-45..45) with a projection profile: when the image is rotated so text
+// lines are horizontal, the row histogram of dark pixels is most "peaky" (max sum of squares).
+function estimateSkew(newCanvas, img) {
+  const s = Math.min(1, 600 / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s));
+  const c = newCanvas(w, h), g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, w, h);
+  const p = g.getImageData(0, 0, w, h).data;
+  const n = w * h, L = new Uint8Array(n), hist = new Uint32Array(256);
+  for (let i = 0; i < n; i++) { const v = (p[i * 4] * 299 + p[i * 4 + 1] * 587 + p[i * 4 + 2] * 114) / 1000 | 0; L[i] = v; hist[v]++; }
+  // Otsu threshold → dark (ink) pixels
+  let sum = 0; for (let v = 0; v < 256; v++) sum += v * hist[v];
+  let sumB = 0, wB = 0, best = 0, thr = 128;
+  for (let v = 0; v < 256; v++) { wB += hist[v]; if (!wB) continue; const wF = n - wB; if (!wF) break; sumB += v * hist[v];
+    const mB = sumB / wB, mF = (sum - sumB) / wF, between = wB * wF * (mB - mF) * (mB - mF); if (between > best) { best = between; thr = v; } }
+  // ink is the minority class; also ignore very large flat dark areas by sampling edges only
+  const xs = [], ys = [];
+  const dark = i => L[i] <= thr;
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const i = y * w + x;
+    if (dark(i) && (!dark(i - 1) || !dark(i + 1) || !dark(i - w) || !dark(i + w))) { xs.push(x - w / 2); ys.push(y - h / 2); }
+  }
+  if (xs.length < 50) return 0;
+  const diag = Math.ceil(Math.hypot(w, h)) + 2;
+  const score = deg => {
+    const a = deg * Math.PI / 180, sn = Math.sin(a), cs = Math.cos(a), bins = new Float64Array(diag);
+    for (let k = 0; k < xs.length; k++) { const r = Math.round(ys[k] * cs - xs[k] * sn + diag / 2); if (r >= 0 && r < diag) bins[r]++; }
+    let s2 = 0; for (let r = 0; r < diag; r++) s2 += bins[r] * bins[r]; return s2;
+  };
+  let bestDeg = 0, bestScore = -1;
+  for (let d = -45; d <= 45; d += 3) { const sc = score(d); if (sc > bestScore) { bestScore = sc; bestDeg = d; } }
+  const coarse = bestDeg;
+  for (let d = coarse - 2.5; d <= coarse + 2.5; d += 0.5) { const sc = score(d); if (sc > bestScore) { bestScore = sc; bestDeg = d; } }
+  // deskew only if clearly better than leaving it as is
+  return bestScore > score(0) * 1.15 ? bestDeg : 0;
+}
+
+// Rotate by any angle (degrees, clockwise), scale, then grayscale + 1–99% contrast stretch
+// Make every region dark-text-on-light: regions whose surroundings are darker than the text get inverted.
+// Uses a box-blurred background estimate (integral image), so light-on-dark title bands become readable
+// without destroying ordinary dark-on-light text.
+function fixPolarity(L, w, h) {
+  const r = Math.max(8, Math.round(Math.min(w, h) / 12));
+  const I = new Float64Array((w + 1) * (h + 1));
+  for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += L[y * w + x]; I[(y + 1) * (w + 1) + x + 1] = I[y * (w + 1) + x + 1] + row; } }
+  const out = new Uint8Array(L.length);
+  for (let y = 0; y < h; y++) {
+    const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+      const mean = (I[y1 * (w + 1) + x1] - I[y0 * (w + 1) + x1] - I[y1 * (w + 1) + x0] + I[y0 * (w + 1) + x0]) / ((x1 - x0) * (y1 - y0));
+      const v = L[y * w + x];
+      out[y * w + x] = mean < 128 ? 255 - v : v;   // dark neighbourhood → flip
+    }
+  }
+  return out;
+}
+
+function renderVariant(newCanvas, img, deg, scale, invert) {
+  const w = img.width * scale, h = img.height * scale, a = deg * Math.PI / 180;
+  const cw = Math.round(Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a))), ch = Math.round(Math.abs(w * Math.sin(a)) + Math.abs(h * Math.cos(a)));
+  const c = newCanvas(cw, ch), g = c.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingQuality = 'high'; g.fillStyle = '#fff'; g.fillRect(0, 0, cw, ch);
+  g.translate(cw / 2, ch / 2); g.rotate(a); g.drawImage(img, -w / 2, -h / 2, w, h); g.setTransform(1, 0, 0, 1, 0, 0);
+  const d = g.getImageData(0, 0, cw, ch), p = d.data, n = p.length / 4, L = new Uint8Array(n), hist = new Uint32Array(256);
+  for (let i = 0; i < n; i++) { const v = (p[i * 4] * 299 + p[i * 4 + 1] * 587 + p[i * 4 + 2] * 114) / 1000 | 0; L[i] = v; hist[v]++; }
+  if (invert === 'local') { const F = fixPolarity(L, cw, ch); hist.fill(0); for (let i = 0; i < n; i++) { L[i] = F[i]; hist[F[i]]++; } invert = false; }
+  let lo = 0, hi = 255, acc = 0;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > n * 0.01) { lo = v; break; } }
+  acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > n * 0.01) { hi = v; break; } }
+  const k = 255 / Math.max(1, hi - lo);
+  for (let i = 0; i < n; i++) { let v = Math.max(0, Math.min(255, (L[i] - lo) * k)); if (invert) v = 255 - v; p[i * 4] = p[i * 4 + 1] = p[i * 4 + 2] = v; }
+  g.putImageData(d, 0, 0);
+  return c;
+}
+
+/* ---------- Medicine-name extraction from OCR text ---------- */
+const DRUGS = ('acetaminophen paracetamol ibuprofen aspirin naproxen diclofenac aceclofenac nimesulide ketorolac celecoxib etoricoxib mefenamic ' +
+  'caffeine tramadol tapentadol hydrocodone oxycodone codeine morphine fentanyl buprenorphine methadone ' +
+  'omeprazole esomeprazole pantoprazole rabeprazole lansoprazole dexlansoprazole famotidine ranitidine domperidone ondansetron metoclopramide ' +
+  'loperamide simethicone bisacodyl lactulose sucralfate mesalamine mesalazine ' +
+  'metformin glimepiride gliclazide glipizide glyburide glibenclamide sitagliptin vildagliptin linagliptin saxagliptin alogliptin teneligliptin ' +
+  'dapagliflozin empagliflozin canagliflozin pioglitazone voglibose acarbose insulin semaglutide liraglutide dulaglutide ' +
+  'amlodipine nifedipine cilnidipine felodipine atorvastatin rosuvastatin simvastatin pravastatin lovastatin ezetimibe fenofibrate ' +
+  'losartan telmisartan olmesartan valsartan irbesartan candesartan lisinopril enalapril ramipril perindopril captopril ' +
+  'metoprolol atenolol bisoprolol propranolol carvedilol nebivolol labetalol hydrochlorothiazide chlorthalidone indapamide furosemide frusemide ' +
+  'torsemide spironolactone eplerenone clonidine prazosin doxazosin tamsulosin silodosin finasteride dutasteride ' +
+  'clopidogrel prasugrel ticagrelor apixaban rivaroxaban dabigatran edoxaban warfarin acenocoumarol heparin enoxaparin digoxin amiodarone ' +
+  'nitroglycerin isosorbide ranolazine ivabradine sacubitril ' +
+  'levothyroxine thyroxine liothyronine methimazole carbimazole prednisone prednisolone methylprednisolone dexamethasone hydrocortisone ' +
+  'budesonide fluticasone beclomethasone mometasone montelukast levocetirizine cetirizine fexofenadine loratadine desloratadine ' +
+  'chlorpheniramine diphenhydramine hydroxyzine promethazine albuterol salbutamol levalbuterol formoterol salmeterol tiotropium ipratropium theophylline ' +
+  'amoxicillin ampicillin clavulanate azithromycin clarithromycin erythromycin doxycycline minocycline ciprofloxacin levofloxacin ofloxacin ' +
+  'moxifloxacin norfloxacin cefixime cefuroxime cefpodoxime cephalexin cefalexin cefadroxil ceftriaxone linezolid metronidazole tinidazole ' +
+  'nitrofurantoin sulfamethoxazole trimethoprim clindamycin vancomycin rifampin rifampicin isoniazid ethambutol pyrazinamide ' +
+  'fluconazole itraconazole terbinafine clotrimazole ketoconazole acyclovir aciclovir valacyclovir oseltamivir ivermectin albendazole ' +
+  'hydroxychloroquine chloroquine methotrexate ' +
+  'sertraline fluoxetine paroxetine escitalopram citalopram fluvoxamine venlafaxine desvenlafaxine duloxetine bupropion mirtazapine trazodone ' +
+  'amitriptyline nortriptyline imipramine clomipramine quetiapine olanzapine risperidone aripiprazole haloperidol clozapine ziprasidone ' +
+  'lithium lamotrigine valproate valproic divalproex carbamazepine oxcarbazepine levetiracetam topiramate phenytoin phenobarbital ' +
+  'gabapentin pregabalin clonazepam alprazolam lorazepam diazepam zolpidem melatonin donepezil memantine ' +
+  'methylphenidate atomoxetine levodopa carbidopa ropinirole pramipexole sumatriptan rizatriptan ' +
+  'sildenafil tadalafil estradiol progesterone norethindrone levonorgestrel medroxyprogesterone letrozole tamoxifen anastrozole ' +
+  'alendronate risedronate calcitriol cholecalciferol ergocalciferol folic cyanocobalamin methylcobalamin ferrous allopurinol febuxostat colchicine ' +
+  'tofacitinib adalimumab dupilumab ursodiol').split(/\s+/);
+
+// Brand names → generic ingredient(s). Exact match only (brands are short and often look like other words).
+const BRANDS = {
+  tylenol: 'acetaminophen', panadol: 'acetaminophen', crocin: 'paracetamol', calpol: 'paracetamol', dolo: 'paracetamol',
+  advil: 'ibuprofen', motrin: 'ibuprofen', brufen: 'ibuprofen', aleve: 'naproxen', naprosyn: 'naproxen', anaprox: 'naproxen',
+  excedrin: 'acetaminophen and aspirin and caffeine', norco: 'hydrocodone and acetaminophen', vicodin: 'hydrocodone and acetaminophen',
+  prilosec: 'omeprazole', omez: 'omeprazole', nexium: 'esomeprazole', nexpro: 'esomeprazole', pantocid: 'pantoprazole', protonix: 'pantoprazole',
+  zoloft: 'sertraline', prozac: 'fluoxetine', fludac: 'fluoxetine', lexapro: 'escitalopram', nexito: 'escitalopram',
+  eliquis: 'apixaban', xarelto: 'rivaroxaban', plavix: 'clopidogrel', clopilet: 'clopidogrel', singulair: 'montelukast', montair: 'montelukast',
+  neurontin: 'gabapentin', gabapin: 'gabapentin', lyrica: 'pregabalin', synthroid: 'levothyroxine', levoxyl: 'levothyroxine', thyronorm: 'levothyroxine', eltroxin: 'levothyroxine',
+  dupixent: 'dupilumab', synapryn: 'tramadol', ultram: 'tramadol', ultracet: 'tramadol and acetaminophen',
+  kazano: 'alogliptin and metformin', caduet: 'amlodipine and atorvastatin', januvia: 'sitagliptin', janumet: 'sitagliptin and metformin',
+  glycomet: 'metformin', glucophage: 'metformin', lipitor: 'atorvastatin', crestor: 'rosuvastatin', norvasc: 'amlodipine', amlong: 'amlodipine',
+  telma: 'telmisartan', ecosprin: 'aspirin', lasix: 'furosemide', augmentin: 'amoxicillin and clavulanate', zithromax: 'azithromycin', azithral: 'azithromycin',
+  proair: 'albuterol', ventolin: 'albuterol', asthalin: 'salbutamol', allegra: 'fexofenadine', zyrtec: 'cetirizine', claritin: 'loratadine',
+};
+const isKnown = d => DRUGS.includes(d) || Object.values(BRANDS).includes(d);
+
+const SUFFIX = /(prazole|statin|sartan|pril|olol|dipine|cillin|mycin|cycline|floxacin|conazole|tidine|gliptin|gliflozin|formin|xaban|gatran|grel|profen|lukast|setron|triptan|oxetine|opram|apine|azepam|zolam|codone|morphone|mab|tinib|ciclovir|clovir|parin|semide|thiazide|olone|asone|tropium|terol|pentin|gabalin|dronate|lamide|azosin|osin)$/;
+
+const SALTS = new Set('base bisulfate sodium potassium calcium magnesium hydrochloride hcl hci bitartrate sulfate sulphate besylate besilate maleate succinate tartrate fumarate mesylate citrate acetate phosphate oxalate bromide chloride benzoate monohydrate trihydrate dihydrate anhydrous usp ip bp'.split(' '));
+
+// Map OCR look-alikes before comparison
+function canon(w) {
+  return w.toLowerCase().replace(/0/g, 'o').replace(/1|\|/g, 'l').replace(/5/g, 's').replace(/[^a-z]/g, '');
+}
+
+function editDistance(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (cur[j] < rowMin) rowMin = cur[j];
+    }
+    if (rowMin > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+// Returns the known drug a token most likely is, or a suffix-matched word, or ''
+function matchDrug(token) {
+  const w = canon(token);
+  if (BRANDS[w]) return BRANDS[w];
+  if (w.length < 5 || SALTS.has(w)) return '';
+  if (DRUGS.includes(w)) return w;
+  // OCR often reads lowercase l as i (e.g. "fiuioxetine")
+  const li = w.replace(/i/g, 'l');
+  if (DRUGS.includes(li)) return li;
+  const max = w.length >= 9 ? 2 : 1;
+  let best = '', bestD = max + 1;
+  for (const d of DRUGS) {
+    if (Math.abs(d.length - w.length) > max) continue;
+    const dist = editDistance(w, d, max);
+    if (dist < bestD) { best = d; bestD = dist; }
+  }
+  if (best) return best;
+  if (w.length >= 7 && SUFFIX.test(w)) return w;
+  return '';
+}
+
+const NOT_DRUGS = new Set('histidine glutamine tyrosine serine lysine arginine cysteine glycine alanine leucine valine proline methionine threonine'.split(' '));
+const NEG_BEFORE = /^(to|of|taking|take|with|contain|containing|than|like|or|and|nsaids?|other|any|allergic|except|including|such|as|plus|ask)$/i;
+const STRENGTH = /^\d+([.,]\d+)?(mg|mcg|g|ml|iu|%)?$/i;
+const UNIT = /^(mg|mcg|ml|g|iu)$/i;
+const JOIN = /^(and|an|&|\+|with)$/i;
+
+// Main entry: returns e.g. "omeprazole" or "amlodipine and atorvastatin", or '' if nothing found
+function analyzeMedicine(text) {
+  // 1) Flatten OCR text into one token stream (line breaks are not reliable on multi-column labels)
+  const toks = [];
+  String(text || '').split(/\n/).forEach(line => {
+    for (const m of line.matchAll(/[A-Za-z0-9|]+(?:[.,]\d+)?|[&+\/\[\](),;:]/g)) {
+      // "Aspirin & Caffeine Free" → the drugs just before "free" are NOT ingredients ("Sugar Free" is harmless)
+      if (/^(free|fee)$/i.test(m[0])) { for (let k = toks.length - 1; k >= Math.max(0, toks.length - 4); k--) toks[k].free = true; toks.push({ t: '\u00a7' }); continue; }
+      toks.push({ t: m[0] });
+    }
+    toks.push({ t: '\n' });
+  });
+  // 2) Recognise drug tokens (also re-join words OCR split in two: "Hyd rocodone")
+  for (let i = 0; i < toks.length; i++) {
+    const a = toks[i].t;
+    if (a.length < 2 || /\W/.test(a[0])) continue;
+    let d = matchDrug(a);
+    if (!d && i + 1 < toks.length && /^[A-Za-z]{1,}$/.test(toks[i + 1].t) && !DRUGS.includes(matchDrug(toks[i + 1].t))) {
+      // only an exact dictionary hit counts when re-joining ("Hyd"+"rocodone"), never a fuzzy one ("of"+"aspirin")
+      const joined = canon(a + toks[i + 1].t), jl = joined.replace(/i/g, 'l');
+      let j = DRUGS.includes(joined) ? joined : DRUGS.includes(jl) ? jl : '';
+      if (!j && canon(a).length >= 3) j = DRUGS.find(d => editDistance(joined, d, 1) <= 1) || ''; // e.g. Mon'elukast
+      if (j) { d = j; toks[i + 1].skip = true; }
+    }
+    if (d && !NOT_DRUGS.has(d) && !toks[i].free) toks[i].drug = d;
+  }
+  const words = toks.filter(x => !x.skip && x.t !== '\n');
+  // 2b) Drugs inside warning lists ("NSAIDs [aspirin, ibuprofen, naproxen, or others]") are not the product
+  for (let i = 0; i < words.length; i++) {
+    if (!words[i].drug) continue;
+    let j = i, members = [i];
+    while (true) {
+      let k = j + 1, sawSep = false;
+      while (k < words.length && k - j <= 3 && !words[k].drug && /^[,;\/]$|^(and|or|of|others?)$/i.test(words[k].t)) { sawSep = true; k++; }
+      if (sawSep && k < words.length && words[k].drug) { members.push(k); j = k; } else break;
+    }
+    const after = words.slice(j + 1, j + 4).map(x => x.t.toLowerCase());
+    const before = words.slice(Math.max(0, i - 2), i).map(x => x.t.toLowerCase());
+    const isList = members.length >= 3 || after.some(t => /^(or|of|others?)$/.test(t)) ||
+      (members.length >= 2 && before.some(t => /^(nsaids?|\[|\()$/.test(t)));
+    if (isList) members.forEach(m => { words[m].listed = true; });
+    i = j;
+  }
+  // 3) Score each mention by how "label-like" its surroundings are
+  const found = new Map();
+  words.forEach((w, i) => {
+    if (!w.drug || w.listed) return;
+    let s = isKnown(w.drug) ? 3 : 1;
+    const next = words.slice(i + 1, i + 5).map(x => x.t.toLowerCase());
+    const prev = (words[i - 1] || {}).t || '';
+    const prev2 = ((words[i - 2] || {}).t || '').toLowerCase();
+    let ctx = false;
+    if (next.length && SALTS.has(canon(next[0]))) { s += 3; ctx = true; }       // "Naproxen sodium", "Sertraline HCl"
+    if (next.some((t, k) => STRENGTH.test(t) && (/[a-z%]$/i.test(t) || UNIT.test(next[k + 1] || '')))) { s += 3; ctx = true; } // "20 mg"
+    if (UNIT.test(prev) && /^\d/.test(prev2) || /^\d+([.,]\d+)?(mg|mcg|g|ml)$/i.test(prev)) { s += 3; ctx = true; }   // "2.5 mg Atorvastatin", "17mg Metformin"
+    if (next[0] === '(' && /^equiv/i.test(next[1] || '')) { s += 2; ctx = true; }                                 // "amlodipine (equivalent to …)"
+    if (next.some(t => /^(tablets?|capsules?|caplets?|usp|ip|bp|delayed|extended|oral|inhalation|injection|syrup|suspension|solution)$/.test(t))) s += 2;
+    const before = words.slice(Math.max(0, i - 8), i).map(x => x.t.toLowerCase());
+    if (/^al[ae]r[tl]$/.test((words[i - 1] || {}).t || '') || /^al[ae]r[tl]$/i.test((words[i - 2] || {}).t || '')) s += 4; // "Allergy alert: Ibuprofen may cause…"
+    if (before.some((t, k) => /^ingredients?$/.test(t) && /^active$/.test(before[k - 1] || ''))) s += 3;           // "Active ingredient (in each tablet) X"
+    if (/^equiv/.test(prev2) && /^to$/i.test(prev)) s += 2;                          // "equivalent to Fluoxetine 10 mg"
+    else if (/^of$/i.test(prev) && (UNIT.test(prev2) || /^\d+([.,]\d+)?\.?(mg|mcg|g)?$/i.test(prev2))) s += 3; // "97.875 mg of clopidogrel"
+    else if (/^containing$/i.test(prev)) s += 0;                                          // "products containing acetaminophen" (neutral)
+    else if ((NEG_BEFORE.test(prev) || prev === '[') && !(next.length && SALTS.has(canon(next[0])))) s -= 3;          // "allergic to aspirin", "[aspirin, ..."
+    if (next[0] === ',' && /^(or|of|others?)$/.test(next[2] || '') ) s -= 3;  // "..., naproxen, or others"
+    const f = found.get(w.drug) || { score: 0, first: i, ctx: false };
+    f.score += Math.max(s, 0);
+    if (ctx && !w.listed && s > 0) f.ctx = true;
+    found.set(w.drug, f);
+  });
+  if (!found.size) return { name: '', score: 0 };
+  const ranked = [...found.entries()].sort((a, b) => b[1].score - a[1].score || isKnown(b[0]) - isKnown(a[0]) || a[1].first - b[1].first);
+  if (ranked[0][1].score <= 0) return { name: '', score: 0 };
+  const tie = ranked.length > 1 && ranked[1][1].score === ranked[0][1].score && isKnown(ranked[1][0]) === isKnown(ranked[0][0]);
+  const main = ranked[0][0];
+  // 4) Combination products: main drug joined to others by "and", "&", "," within a short span,
+  //    e.g. "Amlodipine and Atorvastatin", "Acetaminophen, Aspirin & Caffeine".
+  //    Lists ending in "or others" (warning text) are rejected.
+  let best = [main];
+  words.forEach((w, start) => {
+    if (!w.drug) return;
+    const chain = [w.drug];
+    let last = start, joined = false, bad = false;
+    for (let k = start + 1; k < words.length && k - last <= (joined ? 15 : 6); k++) {
+      const t = words[k].t.toLowerCase();
+      if (t === '§') break;
+      if (/^(or|others?)$/.test(t)) { bad = true; break; }
+      if (JOIN.test(t) || t === ',') joined = true;
+      if (words[k].drug) {
+        if (!joined && k !== last + 1) break;
+        if (!chain.includes(words[k].drug) && (isKnown(words[k].drug) || words[k].drug === main)) chain.push(words[k].drug); // co-ingredients must be known drugs
+        last = k; joined = false;
+      }
+    }
+    // a trailing "or"/"others" right after the chain also marks a warning list
+    for (let k = last + 1; k <= last + 3 && k < words.length; k++) if (/^(or|of|others?)$/i.test(words[k].t)) bad = true;
+    if (!bad && chain.length > best.length && chain.includes(main)) best = chain.slice(0, 3);
+  });
+  // Second ingredients printed with their own strength or salt ("Acetaminophen 325 mg") belong to the product too
+  if (best.length < 3 && ranked[0][1].ctx) {
+    for (const [d, f] of ranked.slice(1)) {
+      if (best.length >= 3) break;
+      if (!best.includes(d) && isKnown(d) && f.ctx && f.score >= Math.max(6, ranked[0][1].score * 0.4)) best.push(d);
+    }
+    best.sort((a, b) => found.get(a).first - found.get(b).first);
+  }
+  // drop names contained in another one ("citalopram" inside "escitalopram" = the same word split by OCR)
+  const flat = [...new Set(best.join(' and ').split(' and '))].filter((d, _, arr) => !arr.some(o => o !== d && o.includes(d)));
+  return { name: flat.join(' and '), score: tie && best.length === 1 ? 0 : ranked[0][1].score };
+}
+
+// Confident = the name sits next to label context (strength, salt or dosage form), not just mentioned in passing
+const CONFIDENT = 6;
+function guessMedicine(text) { const r = analyzeMedicine(text); return r.name; }
+// Combine results from several OCR passes: highest score wins, but a combination that contains the winner
+// ("acetaminophen and aspirin and caffeine" ⊃ "acetaminophen") is kept so co-ingredients aren't lost.
+function pickResult(results) {
+  const ok = results.filter(r => r.score >= 3);
+  if (!ok.length) return { name: '', score: 0 };
+  let best = ok.reduce((a, b) => (b.score > a.score ? b : a));
+  const parts = best.name.split(' and ');
+  for (const r of ok) {
+    const rp = r.name.split(' and ');
+    if (rp.length > parts.length && parts.every(p => rp.includes(p)) && (!best.name.includes(' and ') || rp.length > best.name.split(' and ').length)) best = { name: r.name, score: best.score };
+  }
+  return best;
+}
+
 
 function showScan(d){
   if(!d.legible){$("#gnd").textContent="Label not recognised";$("#res").innerHTML='<div class="empty-s"><b>I couldn’t read a medicine label here</b>'+esc(d.note||"Try a closer photo with good light and no glare.")+'</div>';return}
